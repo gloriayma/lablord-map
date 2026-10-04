@@ -1,0 +1,786 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="description" content="A citation map of all of science from the OpenAlex snapshot, with the research journeys of cross-domain scientists traced across it."><style>[hidden]{display:none!important}</style><title>Lablord</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Josefin+Sans:wght@300;400;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Layout: the map is a dusk landscape filling the screen; search floats top-left,
+   the scientist's journey sits in one card on the right (a bottom sheet on phones). */
+:root {
+  --sky-top: #f6d6c3;
+  --sky-mid: #f0dfe4;
+  --sky-low: #dce3ef;
+  --sun: #fbe3c4;
+  --hill-1: #cdbcd2;
+  --hill-2: #ae9cbd;
+  --hill-3: #8e7ea6;
+  --ink: #2f2843;
+  --ink-2: #5a5270;
+  --muted: #847c98;
+  --edge: #3c325a;
+  --panel: rgba(255, 249, 247, 0.78);
+  --panel-solid: #fbf3f1;
+  --line: rgba(47, 40, 67, 0.12);
+  --ring: #fff8f5;
+  --phys: #7b93e5;
+  --life: #248953;
+  --health: #89396b;
+  --social: #e49754;
+  --path: #d6423a;
+  --path-soft: rgba(214, 66, 58, 0.22);
+  --focus: #d6423a;
+  --font-display: "Josefin Sans", "Futura", "Century Gothic", system-ui, sans-serif;
+  --font-body: "Jost", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sky-top: #12152f; --sky-mid: #1f1d43; --sky-low: #392b55; --sun: #f3e7d0;
+    --hill-1: #2c2649; --hill-2: #221d3c; --hill-3: #19162e;
+    --ink: #f0eaf8; --ink-2: #c6bedb; --muted: #9c94b5; --edge: #d9d0ff;
+    --panel: rgba(27, 25, 52, 0.8); --panel-solid: #1e1c3b; --line: rgba(240, 234, 248, 0.12);
+    --ring: #1d1b3a;
+    --phys: #7785d7; --life: #10a481; --health: #994879; --social: #bb7d27;
+    --path: #ff7a66; --path-soft: rgba(255, 122, 102, 0.25); --focus: #ff7a66;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sky-top: #12152f; --sky-mid: #1f1d43; --sky-low: #392b55; --sun: #f3e7d0;
+  --hill-1: #2c2649; --hill-2: #221d3c; --hill-3: #19162e;
+  --ink: #f0eaf8; --ink-2: #c6bedb; --muted: #9c94b5; --edge: #d9d0ff;
+  --panel: rgba(27, 25, 52, 0.8); --panel-solid: #1e1c3b; --line: rgba(240, 234, 248, 0.12);
+  --ring: #1d1b3a;
+  --phys: #7785d7; --life: #10a481; --health: #994879; --social: #bb7d27;
+  --path: #ff7a66; --path-soft: rgba(255, 122, 102, 0.25); --focus: #ff7a66;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--sky-mid);
+  color: var(--ink);
+  font: 400 15px/1.45 var(--font-body);
+  overflow: hidden;
+}
+#app { position: relative; height: 100%; overflow: hidden; }
+#sky, #map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#map { cursor: grab; touch-action: none; }
+#map:active { cursor: grabbing; }
+
+.panel {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+/* Search */
+.brand { position: absolute; top: calc(16px + env(safe-area-inset-top, 0px)); left: 16px; width: min(340px, calc(100% - 32px)); z-index: 3; }
+.brand .panel { padding: 14px 14px 12px; display: grid; gap: 10px; }
+.wordmark { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wordmark h1 { margin: 0; font: 300 22px/1 var(--font-display); letter-spacing: 0.32em; text-transform: uppercase; }
+.wordmark span { font: 400 11px/1.2 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); text-align: right; }
+.search { position: relative; }
+.search input {
+  width: 100%; box-sizing: border-box; padding: 10px 12px 10px 34px;
+  font: 400 15px var(--font-body); color: var(--ink);
+  background: var(--panel-solid); border: 1px solid var(--line); border-radius: 10px; outline: none;
+}
+.search input:focus-visible { border-color: var(--focus); box-shadow: 0 0 0 3px var(--path-soft); }
+.search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; stroke: var(--muted); fill: none; stroke-width: 2; }
+.suggest { position: absolute; top: calc(100% + 6px); left: 0; right: 0; padding: 6px; z-index: 5; max-height: 50vh; overflow: auto; background: var(--panel-solid); }
+.suggest h3 { margin: 6px 8px 4px; font: 500 10.5px var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.suggest button {
+  display: flex; width: 100%; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 7px 8px; border: 0; border-radius: 8px; background: none; color: var(--ink);
+  font: 400 14px var(--font-body); text-align: left; cursor: pointer;
+}
+.suggest button small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.suggest button[aria-selected="true"], .suggest button:hover { background: var(--path-soft); }
+.suggest p { margin: 8px; color: var(--ink-2); font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button {
+  padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+  color: var(--ink-2); font: 400 13px var(--font-body); cursor: pointer;
+}
+.chips button:hover { color: var(--ink); border-color: var(--ink-2); }
+.chips button[aria-pressed="true"] { color: var(--ink); border-color: var(--path); background: var(--path-soft); }
+
+/* Legend */
+.legend { position: absolute; z-index: 2; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); padding: 10px 12px; display: grid; gap: 6px; max-width: min(380px, calc(100% - 32px)); }
+.legend ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.legend li { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); }
+.legend i { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--ring); }
+.legend p { margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+
+/* Scientist card */
+.pi { position: absolute; z-index: 3; top: calc(16px + env(safe-area-inset-top, 0px)); right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: 360px; display: flex; flex-direction: column; overflow: hidden; }
+.pi header { padding: 16px 18px 12px; display: grid; gap: 4px; border-bottom: 1px solid var(--line); }
+.pi .eyebrow { font: 400 10.5px var(--font-display); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.pi h2 { margin: 0; font: 400 25px/1.1 var(--font-display); letter-spacing: 0.02em; text-wrap: balance; }
+.pi .meta { color: var(--ink-2); font-size: 13.5px; }
+.pi .meta a { color: inherit; }
+.pi .body { overflow: auto; padding: 12px 18px 16px; display: grid; gap: 16px; align-content: start; min-height: 0; }
+.section-title { margin: 0 0 6px; font: 500 10.5px var(--font-display); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.fieldbar { display: flex; height: 8px; gap: 2px; border-radius: 4px; overflow: hidden; }
+.fieldbar span { min-width: 2px; }
+.fieldlist { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; }
+.fieldlist li { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; color: var(--ink-2); }
+.fieldlist i { width: 8px; height: 8px; border-radius: 50%; }
+.fieldlist b { font: 400 12px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.journey .readout { display: flex; align-items: baseline; gap: 10px; min-height: 40px; }
+.journey .year { font: 500 28px/1 var(--font-mono); color: var(--path); letter-spacing: -0.02em; }
+.journey .where { font-size: 13px; color: var(--ink-2); line-height: 1.3; min-width: 0; }
+.hist { position: relative; margin-top: 4px; }
+.hist svg { display: block; width: 100%; height: 64px; overflow: visible; }
+.hist input[type="range"] { position: absolute; left: 0; right: 0; bottom: -6px; width: 100%; margin: 0; height: 80px; opacity: 0; cursor: pointer; }
+.hist input[type="range"]:focus-visible + .scrub-focus { opacity: 1; }
+.scrub-focus { position: absolute; inset: -4px; border-radius: 8px; box-shadow: 0 0 0 2px var(--focus); opacity: 0; pointer-events: none; }
+.controls { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
+.controls button {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 10px; border-radius: 999px;
+  border: 1px solid var(--path); background: var(--path-soft); color: var(--ink); font: 500 13px var(--font-body); cursor: pointer;
+}
+.controls button svg { width: 12px; height: 12px; fill: var(--path); }
+.controls small { color: var(--muted); font-size: 12px; }
+.axis text { font: 400 10px var(--font-mono); fill: var(--muted); }
+
+.papers { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.papers li button {
+  display: grid; grid-template-columns: 42px 1fr; gap: 10px; width: 100%; padding: 7px 6px; text-align: left;
+  background: none; border: 0; border-radius: 8px; color: var(--ink); cursor: pointer; font: inherit;
+}
+.papers li button:hover, .papers li button.on { background: var(--path-soft); }
+.papers .y { font: 400 12.5px/1.5 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.papers .t { font-size: 13.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.papers .s { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 12px; color: var(--muted); }
+.papers .s i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.papers-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.papers-note a { color: inherit; }
+
+/* Map marks */
+.edge { stroke: var(--edge); fill: none; }
+.node { stroke: var(--ring); stroke-width: 1.2; transition: opacity 0.35s; }
+.node.d-phys, .sw-phys { fill: var(--phys); background: var(--phys); }
+.node.d-life, .sw-life { fill: var(--life); background: var(--life); }
+.node.d-health, .sw-health { fill: var(--health); background: var(--health); }
+.node.d-social, .sw-social { fill: var(--social); background: var(--social); }
+.dimmed .node { opacity: 0.38; }
+.dimmed .node.visited { opacity: 1; }
+.dimmed .edge { opacity: 0.55; }
+.flabel { font: 400 11px var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; fill: var(--ink-2); paint-order: stroke; stroke: var(--sky-mid); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+.slabel { font: 400 10.5px var(--font-body); fill: var(--ink-2); paint-order: stroke; stroke: var(--sky-mid); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.trail-glow { stroke: var(--path-soft); stroke-width: 9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.trail { stroke: var(--path); stroke-width: 2.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.stop { fill: none; stroke: var(--path); stroke-width: 1.6; }
+.stop.now { stroke-width: 2.6; }
+.ylabel { font: 500 10.5px var(--font-mono); fill: var(--path); paint-order: stroke; stroke: var(--sky-mid); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+.traveler { fill: var(--path); stroke: var(--ring); stroke-width: 2.5; }
+.halo { fill: var(--path-soft); }
+.hit { fill: transparent; cursor: pointer; }
+.pick { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: none; }
+
+/* Tooltip */
+.tip { position: absolute; z-index: 6; pointer-events: none; max-width: 300px; padding: 10px 12px; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px rgba(30, 20, 50, 0.16); font-size: 13px; }
+.tip h4 { margin: 0 0 2px; font: 500 14px/1.25 var(--font-body); }
+.tip .sub { color: var(--ink-2); font-size: 12.5px; }
+.tip .num { font: 400 12px var(--font-mono); color: var(--muted); margin-top: 4px; }
+.tip ul { margin: 6px 0 0; padding: 0 0 0 14px; color: var(--ink-2); font-size: 12.5px; }
+.tip .mine { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
+.tip .mine div { display: grid; grid-template-columns: 38px 1fr; gap: 6px; font-size: 12.5px; color: var(--ink); }
+.tip .mine div span:first-child { font-family: var(--font-mono); color: var(--path); }
+
+.loading { position: absolute; inset: 0; display: grid; place-items: center; font: 300 14px var(--font-display); letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-2); z-index: 1; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  .brand { width: auto; right: 16px; }
+  .chips { display: none; }
+  .legend { display: none; }
+  .pi { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 46%; border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pi header { padding: 12px 16px 10px; }
+  .pi h2 { font-size: 21px; }
+  .pi .body { padding: 10px 16px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .node { transition: none; }
+}
+</style>
+
+</head><body><div id="app">
+  <canvas id="sky" aria-hidden="true"></canvas>
+  <svg id="map" role="img" aria-label="Map of science: about 500 clusters of research topics, placed by how often they cite each other"></svg>
+  <div class="loading" id="loading">Drawing the map</div>
+
+  <div class="brand">
+    <div class="panel">
+      <div class="wordmark"><h1>Lablord</h1><span>A map of<br>all of science</span></div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+        <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search a scientist or a topic"
+               role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list">
+        <div id="suggest" class="suggest panel" role="listbox" hidden></div>
+      </div>
+      <div class="chips" id="chips" aria-label="Featured scientists"></div>
+    </div>
+  </div>
+
+  <aside class="legend panel" aria-label="Legend">
+    <ul id="legend"></ul>
+    <p id="about"></p>
+  </aside>
+
+  <section class="pi panel" id="pi" aria-live="polite" hidden>
+    <header>
+      <div class="eyebrow">Research journey</div>
+      <h2 id="pi-name"></h2>
+      <div class="meta" id="pi-meta"></div>
+    </header>
+    <div class="body">
+      <div class="journey">
+        <div class="readout"><span class="year" id="yr"></span><span class="where" id="where"></span></div>
+        <div class="hist">
+          <svg id="hist" aria-hidden="true"></svg>
+          <input id="scrub" type="range" min="0" max="1" step="1" value="0" aria-label="Year">
+          <div class="scrub-focus"></div>
+        </div>
+        <div class="controls">
+          <button id="play" type="button"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z"></path></svg><span>Play journey</span></button>
+          <small id="hist-note"></small>
+        </div>
+      </div>
+      <div>
+        <h3 class="section-title">Fields they led papers in</h3>
+        <div class="fieldbar" id="fieldbar"></div>
+        <ul class="fieldlist" id="fieldlist"></ul>
+      </div>
+      <div>
+        <h3 class="section-title">Papers they led</h3>
+        <ul class="papers" id="papers"></ul>
+        <p class="papers-note" id="papers-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="tip" id="tip" hidden></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+(() => {
+  const DOMAIN_KEY = {
+    "Physical Sciences": "phys", "Life Sciences": "life", "Health Sciences": "health", "Social Sciences": "social",
+  };
+  const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  let MAP, PIS, TOPICS, nodes, edges;
+  const topicName = (w) => TOPICS[w.tp] || nodes[w.node].label;
+  let W = 0, H = 0, base = { s: 1, x: 0, y: 0 }, zt = d3.zoomIdentity;
+  let current = null;       // selected scientist
+  let journey = null;       // derived path data for the selection
+  let playTimer = null;
+  let pinned = null;        // node pinned by click/tap
+  let picked = null;        // node highlighted from search or the paper list
+
+  const svg = d3.select("#map");
+  const gEdges = svg.append("g");
+  const gNodes = svg.append("g");
+  const gLabels = svg.append("g");
+  const gTrail = svg.append("g");
+  const gHits = svg.append("g");
+  const basePath = svg.append("path").attr("visibility", "hidden");
+
+  // ---------- data ----------
+  Promise.all([fetch("data/map.json").then((r) => r.json()), fetch("data/pis.json").then((r) => r.json())])
+    .then(([m, p]) => { MAP = m; PIS = p.people; TOPICS = p.topics; init(); })
+    .catch(() => { $("loading").textContent = "Map data failed to load. Reload the page to try again."; });
+
+  function init() {
+    nodes = MAP.nodes.map((n) => ({ ...n, key: DOMAIN_KEY[n.domain] }));
+    edges = MAP.edges.map(([a, b, w]) => ({ a: nodes[a], b: nodes[b], w }));
+    const rScale = d3.scaleSqrt().domain([0, d3.max(nodes, (n) => n.works)]).range([0, 13]);
+    nodes.forEach((n) => { n.r0 = Math.max(1.8, rScale(n.works)); });
+    buildLabels();
+    $("loading").remove();
+
+    // Legend + about line
+    $("legend").innerHTML = Object.keys(DOMAIN_KEY).map((d) =>
+      `<li><i class="sw-${DOMAIN_KEY[d]}"></i>${esc(d)}</li>`).join("");
+    $("about").textContent = `${nodes.length} dots, each a cluster of related topics, sized by its papers ` +
+      `(${fmt(MAP.totals.linked ?? MAP.totals.works)} research papers that cite other research). Lines are the strongest of ` +
+      `${(MAP.totals.citations / 1e9).toFixed(1)}B direct citations. OpenAlex snapshot ${MAP.release}.`;
+
+    // Featured scientists: the most cross-field journeys first
+    $("chips").innerHTML = PIS.slice(0, 5).map((p, i) =>
+      `<button type="button" data-i="${i}" aria-pressed="false">${esc(p.name)}</button>`).join("");
+    $("chips").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) select(PIS[+b.dataset.i]); });
+
+    drawMarks();
+    resize();
+    window.addEventListener("resize", () => { resize(); });
+    setupZoom();
+    setupSearch();
+    setupJourneyControls();
+    // #stephen-quake style links open that scientist's journey.
+    const fromHash = PIS.find((p) => slug(p.name) === location.hash.slice(1));
+    select(fromHash || PIS[0], { animate: false });
+  }
+  const slug = (s) => s.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  // ---------- geometry ----------
+  const bx = (n) => base.x + n.x * base.s;
+  const by = (n) => base.y + n.y * base.s;
+  const sx = (n) => zt.applyX(bx(n));
+  const sy = (n) => zt.applyY(by(n));
+  const rad = (n) => n.r0 * Math.pow(zt.k, 0.55);
+
+  function resize() {
+    const box = $("app").getBoundingClientRect();
+    W = box.width; H = box.height;
+    svg.attr("viewBox", `0 0 ${W} ${H}`);
+    const narrow = W <= 760;
+    // Leave room for the scientist card; the translucent search and legend may overlap the edges.
+    const padL = narrow ? 16 : Math.min(240, W * 0.16), padR = narrow ? 16 : 396;
+    const padT = narrow ? 150 : 28, padB = narrow ? H * 0.46 + 10 : 36;
+    const xs = d3.extent(nodes, (n) => n.x), ys = d3.extent(nodes, (n) => n.y);
+    const aw = Math.max(120, W - padL - padR), ah = Math.max(120, H - padT - padB);
+    base.s = Math.min(aw / (xs[1] - xs[0]), ah / (ys[1] - ys[0]));
+    base.x = padL + (aw - (xs[1] - xs[0]) * base.s) / 2 - xs[0] * base.s;
+    base.y = padT + (ah - (ys[1] - ys[0]) * base.s) / 2 - ys[0] * base.s;
+    drawSky();
+    if (journey) {
+      buildJourneyGeometry();
+      drawHist(current);
+      drawHistMarker(journey.year);
+    }
+    render();
+  }
+
+  // ---------- sky ----------
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function isDark() { return css("color-scheme").includes("dark"); }
+  function drawSky() {
+    const c = $("sky"), dpr = Math.min(2, window.devicePixelRatio || 1);
+    c.width = W * dpr; c.height = H * dpr;
+    const ctx = c.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, css("--sky-top")); g.addColorStop(0.55, css("--sky-mid")); g.addColorStop(1, css("--sky-low"));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    let seed = 11;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    // A low sun sinking behind the ridges by day; a small moon and stars by night.
+    const dark = isDark();
+    const cx = dark ? W * 0.7 : W * 0.13, cy = dark ? H * 0.12 : H * 0.83;
+    const r = Math.min(W, H) * (dark ? 0.026 : 0.06);
+    const glow = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.4);
+    glow.addColorStop(0, css("--sun")); glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.globalAlpha = dark ? 0.15 : 0.35; ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = dark ? 0.75 : 0.85; ctx.fillStyle = css("--sun");
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    if (dark) {
+      ctx.fillStyle = css("--ink");
+      for (let i = 0; i < 160; i++) {
+        const x = rnd() * W, y = rnd() * H * 0.7, s = rnd() * 1.1 + 0.2;
+        ctx.globalAlpha = 0.15 + rnd() * 0.45; ctx.fillRect(x, y, s, s);
+      }
+      ctx.globalAlpha = 1;
+    }
+    // three ridgelines, smooth value noise
+    const layers = [["--hill-1", 0.80, 0.07, 0.5], ["--hill-2", 0.86, 0.06, 0.65], ["--hill-3", 0.92, 0.045, 0.8]];
+    layers.forEach(([tok, baseY, amp, alpha], li) => {
+      const pts = 9 + li * 3, ys = Array.from({ length: pts + 3 }, () => rnd());
+      ctx.beginPath(); ctx.moveTo(0, H);
+      for (let x = 0; x <= W; x += 6) {
+        const t = (x / W) * pts, i = Math.floor(t), f = t - i, s = f * f * (3 - 2 * f);
+        const y = H * (baseY - amp * (ys[i] * (1 - s) + ys[i + 1] * s) - amp * 0.35 * Math.sin(x / W * Math.PI * (2 + li)));
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, H); ctx.closePath();
+      ctx.globalAlpha = alpha; ctx.fillStyle = css(tok); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+  const themeObs = new MutationObserver(() => drawSky());
+  themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => drawSky());
+
+  // ---------- marks ----------
+  let edgeSel, nodeSel, hitSel, flabelSel, slabelSel;
+  function drawMarks() {
+    edgeSel = gEdges.selectAll("line").data(edges).join("line").attr("class", "edge")
+      .attr("stroke-opacity", (e) => 0.07 + 0.32 * e.w).attr("stroke-width", (e) => 0.5 + 1.1 * e.w);
+    nodeSel = gNodes.selectAll("circle").data(nodes).join("circle").attr("class", (n) => `node d-${n.key}`);
+    hitSel = gHits.selectAll("circle").data(nodes).join("circle").attr("class", "hit")
+      .on("pointerenter", (ev, n) => { if (!pinned) showTip(n, ev); })
+      .on("pointermove", (ev, n) => { if (!pinned) moveTip(ev); })
+      .on("pointerleave", () => { if (!pinned) hideTip(); })
+      .on("click", (ev, n) => { ev.stopPropagation(); pinned = n; showTip(n, ev); });
+    svg.on("click", () => { pinned = null; picked = null; hideTip(); render(); });
+  }
+
+  // Field labels at the size-weighted centre of each field; subfield labels on zoom.
+  let fieldLabels = [], subLabels = [];
+  function buildLabels() {
+    const centre = (arr) => ({ x: d3.sum(arr, (n) => n.x * n.works) / d3.sum(arr, (n) => n.works),
+                               y: d3.sum(arr, (n) => n.y * n.works) / d3.sum(arr, (n) => n.works),
+                               works: d3.sum(arr, (n) => n.works) });
+    fieldLabels = Array.from(d3.group(nodes, (n) => n.field), ([name, arr]) => ({ name, ...centre(arr) }))
+      .sort((a, b) => b.works - a.works);
+    subLabels = Array.from(d3.group(nodes, (n) => n.subfield), ([name, arr]) => ({ name, ...centre(arr) }))
+      .sort((a, b) => b.works - a.works);
+  }
+  function placeLabels(list, cls, minK, fontPx, shorten) {
+    if (zt.k < minK) return [];
+    const placed = [], out = [];
+    const charW = fontPx * (cls === "flabel" ? 0.78 : 0.52);
+    for (const l of list) {
+      const text = shorten(l.name), x = sx(l), y = sy(l);
+      const w = text.length * charW, h = fontPx + 4;
+      const box = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
+      if (box[2] < 0 || box[0] > W || box[3] < 0 || box[1] > H) continue;
+      if (placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) continue;
+      placed.push(box); out.push({ ...l, text, x, y });
+    }
+    return out;
+  }
+  const shortField = (s) => s.replace(", Genetics and Molecular Biology", " & Mol. Bio").replace(", Toxicology and Pharmaceutics", "")
+    .replace(", Econometrics and Finance", "").replace(", Management and Accounting", "").replace(" and Biological Sciences", " & Bio Sci")
+    .replace(" and Planetary Sciences", " & Planetary").replace(" and Astronomy", " & Astronomy").replace(" and Microbiology", " & Microbio")
+    .replace(" and Humanities", " & Humanities");
+
+  function render() {
+    edgeSel.attr("x1", (e) => sx(e.a)).attr("y1", (e) => sy(e.a)).attr("x2", (e) => sx(e.b)).attr("y2", (e) => sy(e.b));
+    nodeSel.attr("cx", sx).attr("cy", sy).attr("r", rad)
+      .classed("visited", (n) => !!(journey && journey.visitedUpTo.has(n.i)));
+    hitSel.attr("cx", sx).attr("cy", sy).attr("r", (n) => Math.max(10, rad(n) + 4));
+    svg.classed("dimmed", !!journey);
+
+    const fl = placeLabels(fieldLabels, "flabel", 0, 11, shortField);
+    const sl = zt.k >= 2.2 ? placeLabels(subLabels, "slabel", 2.2, 10.5, (s) => s) : [];
+    flabelSel = gLabels.selectAll("text.flabel").data(zt.k < 3.5 ? fl : [], (d) => d.name)
+      .join("text").attr("class", "flabel").attr("text-anchor", "middle").attr("dy", "0.35em")
+      .attr("x", (d) => d.x).attr("y", (d) => d.y).text((d) => d.text);
+    slabelSel = gLabels.selectAll("text.slabel").data(sl, (d) => d.name)
+      .join("text").attr("class", "slabel").attr("text-anchor", "middle").attr("dy", "0.35em")
+      .attr("x", (d) => d.x).attr("y", (d) => d.y).text((d) => d.text);
+    renderTrail();
+    if (pinned) positionTipAtNode(pinned);
+  }
+
+  // ---------- zoom ----------
+  let zoom;
+  function setupZoom() {
+    zoom = d3.zoom().scaleExtent([0.6, 12]).on("zoom", (ev) => { zt = ev.transform; render(); });
+    svg.call(zoom).on("dblclick.zoom", null);
+  }
+  function zoomToNode(n, k = 3) {
+    // Centre on the open sky: left of the scientist card on desktop, above the sheet on phones.
+    const cx = W > 760 ? (W - 396) / 2 : W / 2, cy = W > 760 ? H / 2 : H * 0.3;
+    const t = d3.zoomIdentity.translate(cx, cy).scale(k).translate(-bx(n), -by(n));
+    svg.transition().duration(REDUCED ? 0 : 750).call(zoom.transform, t);
+  }
+
+  // ---------- tooltip ----------
+  function tipHTML(n) {
+    const more = n.ntopics > 1 ? `<ul>${n.topics.slice(1, 4).map((t) => `<li>${esc(t)}</li>`).join("")}${n.ntopics > 4 ? `<li>and ${n.ntopics - 4} more topics</li>` : ""}</ul>` : "";
+    let mine = "";
+    if (journey) {
+      const ws = current.works.filter((w) => w.node === n.i);
+      if (ws.length) {
+        const shown = ws.filter((w) => w.t).sort((a, b) => b.c - a.c).slice(0, 4).sort((a, b) => a.y - b.y);
+        mine = `<div class="mine"><div class="num">${esc(current.name)}: ${ws.length} paper${ws.length > 1 ? "s" : ""} here</div>` +
+          shown.map((w) => `<div><span>${w.y}</span><span>${esc(w.t)}</span></div>`).join("") + "</div>";
+      }
+    }
+    return `<h4>${esc(n.label)}</h4><div class="sub">${esc(n.subfield)} · ${esc(n.field)}</div>` +
+      `<div class="num">${fmt(n.works)} papers · ${n.ntopics} topic${n.ntopics > 1 ? "s" : ""}</div>${more}${mine}`;
+  }
+  function showTip(n, ev) { const t = $("tip"); t.innerHTML = tipHTML(n); t.hidden = false; if (ev && ev.clientX) moveTip(ev); else positionTipAtNode(n); }
+  function moveTip(ev) {
+    const t = $("tip"), box = $("app").getBoundingClientRect();
+    let x = ev.clientX - box.left + 14, y = ev.clientY - box.top + 14;
+    if (x + t.offsetWidth > W - 8) x = ev.clientX - box.left - t.offsetWidth - 14;
+    if (y + t.offsetHeight > H - 8) y = ev.clientY - box.top - t.offsetHeight - 14;
+    t.style.left = Math.max(8, x) + "px"; t.style.top = Math.max(8, y) + "px";
+  }
+  function positionTipAtNode(n) {
+    const t = $("tip"); let x = sx(n) + rad(n) + 10, y = sy(n) - 10;
+    if (x + t.offsetWidth > W - 8) x = sx(n) - rad(n) - 10 - t.offsetWidth;
+    if (y + t.offsetHeight > H - 8) y = H - 8 - t.offsetHeight;
+    t.style.left = Math.max(8, x) + "px"; t.style.top = Math.max(8, y) + "px";
+  }
+  function hideTip() { $("tip").hidden = true; }
+
+  // ---------- journey ----------
+  function select(pi, { animate = true } = {}) {
+    stopPlay();
+    current = pi; pinned = null; picked = null; hideTip();
+    try { history.replaceState(null, "", "#" + slug(pi.name)); } catch (e) { /* sandboxed frames may refuse */ }
+    document.querySelectorAll("#chips button").forEach((b) => b.setAttribute("aria-pressed", PIS[+b.dataset.i] === pi ? "true" : "false"));
+    // Collapse consecutive years at the same node into one stop.
+    const stops = [];
+    for (const p of pi.path) {
+      const last = stops[stops.length - 1];
+      if (last && last.node === p.node) { last.years.push(p.year); last.n += p.n; }
+      else stops.push({ node: p.node, years: [p.year], n: p.n });
+    }
+    const years = d3.range(pi.years[0], pi.years[1] + 1);
+    journey = { stops, years, year: pi.years[1], visitedUpTo: new Set() };
+    buildJourneyGeometry();
+    fillCard(pi);
+    setYear(pi.years[1]);
+    if (animate && !REDUCED) play();
+  }
+
+  const trailLine = d3.line().curve(d3.curveCatmullRom.alpha(0.5));
+  const trailD = (pts) => (pts.length > 1 ? trailLine(pts) : `M${pts[0][0]},${pts[0][1]}h0`);
+
+  function buildJourneyGeometry() {
+    const pts = journey.stops.map((s) => [bx(nodes[s.node]), by(nodes[s.node])]);
+    const d = trailD(pts);
+    basePath.attr("d", d);
+    const el = basePath.node(), total = el.getTotalLength();
+    // Arc length at each stop, found by walking the curve.
+    const N = Math.max(200, pts.length * 40), samples = [];
+    for (let i = 0; i <= N; i++) { const p = el.getPointAtLength((total * i) / N); samples.push([p.x, p.y, (total * i) / N]); }
+    let from = 0;
+    journey.stopLen = pts.map(([x, y], k) => {
+      if (k === 0) return 0;
+      if (k === pts.length - 1) return total;
+      let best = from, bd = Infinity;
+      for (let i = from; i <= N; i++) { const dd = (samples[i][0] - x) ** 2 + (samples[i][1] - y) ** 2; if (dd < bd) { bd = dd; best = i; } }
+      from = best; return samples[best][2];
+    });
+    journey.basePts = pts; journey.total = total;
+  }
+
+  function stopIndexForYear(y) {
+    let idx = 0;
+    journey.stops.forEach((s, i) => { if (s.years[0] <= y) idx = i; });
+    return idx;
+  }
+
+  function setYear(y) {
+    journey.year = y;
+    const si = stopIndexForYear(y);
+    journey.stopIdx = si;
+    journey.visitedUpTo = new Set(current.works.filter((w) => w.y <= y).map((w) => w.node));
+    $("scrub").value = y;
+    $("scrub").setAttribute("aria-valuetext", `${y}`);
+    $("yr").textContent = y;
+    // Describe the year by the papers' own topics; the node is only where they sit on the map.
+    const ws = current.works.filter((w) => w.y === y);
+    const here = nodes[journey.stops[si].node];
+    const top = d3.greatest(d3.rollups(ws, (v) => v.length, topicName), (d) => d[1]);
+    $("where").innerHTML = ws.length
+      ? `${ws.length} paper${ws.length > 1 ? "s" : ""} · mostly <b>${esc(top[0])}</b><br><span style="color:var(--muted)">${esc(nodes[ws.find((w) => topicName(w) === top[0]).node].field)}</span>`
+      : `No papers led this year<br><span style="color:var(--muted)">Last stop: ${esc(here.label)}</span>`;
+    drawHistMarker(y);
+    document.querySelectorAll("#papers button").forEach((b) => b.classList.toggle("on", +b.dataset.y === y));
+    render();
+  }
+
+  function renderTrail() {
+    if (!journey) { gTrail.selectAll("*").remove(); return; }
+    // A uniform zoom scales arc length by k exactly, so the base-scale lengths still apply.
+    const k = zt.k;
+    const d = trailD(journey.basePts.map(([x, y]) => [zt.applyX(x), zt.applyY(y)]));
+    const shown = journey.stopLen[journey.stopIdx] * k;
+    const total = journey.total * k;
+    const data = [{ cls: "trail-glow" }, { cls: "trail" }];
+    gTrail.selectAll("path").data(data).join("path")
+      .attr("class", (dd) => dd.cls).attr("d", d)
+      .attr("stroke-dasharray", `${shown} ${total + 10}`);
+    // Stops reached so far: a ring around the node, and the year it first arrived.
+    const reached = journey.stops.slice(0, journey.stopIdx + 1).map((s, i) => ({ ...s, i, n0: nodes[s.node] }));
+    gTrail.selectAll("circle.stop").data(reached, (d) => d.i).join("circle")
+      .attr("class", (d) => "stop" + (d.i === journey.stopIdx ? " now" : ""))
+      .attr("cx", (d) => sx(d.n0)).attr("cy", (d) => sy(d.n0)).attr("r", (d) => rad(d.n0) + 3.5);
+    const placed = [];
+    const labels = [];
+    for (let i = reached.length - 1; i >= 0; i--) {
+      const d = reached[i], x = sx(d.n0) + rad(d.n0) + 6, y = sy(d.n0) - rad(d.n0) - 2;
+      if (placed.some(([px, py]) => Math.abs(px - x) < 34 && Math.abs(py - y) < 13)) continue;
+      placed.push([x, y]); labels.push({ ...d, x, y });
+    }
+    gTrail.selectAll("text.ylabel").data(labels, (d) => d.i).join("text").attr("class", "ylabel")
+      .attr("x", (d) => d.x).attr("y", (d) => d.y).text((d) => "’" + String(d.years[0]).slice(2));
+    const cur = nodes[journey.stops[journey.stopIdx].node];
+    const pick = picked ? [picked] : [];
+    gTrail.selectAll("circle.pick").data(pick).join("circle").attr("class", "pick")
+      .attr("cx", sx).attr("cy", sy).attr("r", (n) => rad(n) + 7);
+    gTrail.selectAll("circle.halo").data([cur]).join("circle").attr("class", "halo")
+      .attr("cx", sx).attr("cy", sy).attr("r", (n) => rad(n) + 10);
+    gTrail.selectAll("circle.traveler").data([cur]).join("circle").attr("class", "traveler")
+      .attr("cx", sx).attr("cy", sy).attr("r", 5);
+  }
+
+  // ---------- card ----------
+  function fillCard(pi) {
+    $("pi").hidden = false;
+    $("pi-name").textContent = pi.name;
+    const prof = pi.profile, oa = prof.openalex[0];
+    $("pi-meta").innerHTML = `${prof.institution ? esc(prof.institution) + " · " : ""}${pi.years[0]}–${pi.years[1]} · ` +
+      `${pi.n_led} papers led of ${pi.n_all}<br><a href="https://openalex.org/authors/${oa}" target="_blank" rel="noopener">OpenAlex profile</a>` +
+      (prof.orcid ? ` · <a href="${esc(prof.orcid)}" target="_blank" rel="noopener">ORCID</a>` : "");
+
+    const fields = Object.entries(pi.fields);
+    const fieldDomain = Object.fromEntries(MAP.fields.map((f) => [f.name, DOMAIN_KEY[f.domain]]));
+    const total = d3.sum(fields, (f) => f[1]);
+    $("fieldbar").innerHTML = fields.map(([f, c]) => `<span class="sw-${fieldDomain[f]}" style="flex:${c}" title="${esc(f)}: ${c}"></span>`).join("");
+    const top = fields.slice(0, 6), rest = fields.slice(6);
+    $("fieldlist").innerHTML = top.map(([f, c]) => `<li><i class="sw-${fieldDomain[f]}"></i><span>${esc(f)}</span><b>${c}</b></li>`).join("") +
+      (rest.length ? `<li><i></i><span style="color:var(--muted)">${rest.length} more field${rest.length > 1 ? "s" : ""}</span><b>${d3.sum(rest, (f) => f[1])}</b></li>` : "");
+
+    drawHist(pi);
+    const titled = pi.works.filter((w) => w.t);
+    $("papers").innerHTML = titled.map((w) => {
+      const n = nodes[w.node];
+      return `<li><button type="button" data-node="${w.node}" data-y="${w.y}"><span class="y">${w.y}</span>` +
+        `<span><span class="t">${esc(w.t)}</span><span class="s"><i class="sw-${n.key}"></i>${esc(topicName(w))}</span></span></button></li>`;
+    }).join("");
+    $("papers-note").innerHTML = `Showing ${titled.length} of ${pi.n_led} led papers (the most cited, plus the top paper of each year). ` +
+      `<a href="https://openalex.org/works?filter=authorships.author.id:${prof.openalex.join("|")}" target="_blank" rel="noopener">All on OpenAlex</a>`;
+    $("pi").querySelector(".body").scrollTop = 0;
+  }
+
+  let histX, histBand;
+  function drawHist(pi) {
+    const el = $("hist"), w = el.getBoundingClientRect().width || 320, h = 64, axisH = 14;
+    const years = journey.years;
+    const keys = ["phys", "life", "health", "social"];
+    const rows = years.map((y) => {
+      const r = { year: y }; keys.forEach((k) => (r[k] = 0));
+      pi.works.forEach((wk) => { if (wk.y === y) r[nodes[wk.node].key]++; });
+      return r;
+    });
+    const stack = d3.stack().keys(keys)(rows);
+    const maxN = d3.max(rows, (r) => d3.sum(keys, (k) => r[k])) || 1;
+    histBand = d3.scaleBand().domain(years).range([0, w]).paddingInner(years.length > 40 ? 0.15 : 0.25);
+    histX = (y) => histBand(y) + histBand.bandwidth() / 2;
+    const yS = d3.scaleLinear().domain([0, maxN]).range([h - axisH, 4]);
+    const s = d3.select(el).attr("viewBox", `0 0 ${w} ${h}`);
+    s.selectAll("*").remove();
+    // 2px surface gap between stacked segments
+    s.append("g").selectAll("g").data(stack).join("g").attr("class", (d) => `sw-${d.key}`).attr("fill", (d) => `var(--${d.key})`)
+      .selectAll("rect").data((d) => d).join("rect")
+      .attr("x", (d) => histBand(d.data.year)).attr("width", histBand.bandwidth())
+      .attr("y", (d) => yS(d[1]) + (d[1] > d[0] ? 1 : 0))
+      .attr("height", (d) => Math.max(0, yS(d[0]) - yS(d[1]) - (d[1] > d[0] ? 1 : 0)))
+      .attr("rx", Math.min(2, histBand.bandwidth() / 3));
+    s.append("line").attr("x1", 0).attr("x2", w).attr("y1", h - axisH + 0.5).attr("y2", h - axisH + 0.5).attr("stroke", "var(--line)");
+    const ticks = years.filter((y) => y === years[0] || y === years[years.length - 1] || (y % 10 === 0 && y - years[0] > 3 && years[years.length - 1] - y > 3));
+    s.append("g").attr("class", "axis").selectAll("text").data(ticks).join("text")
+      .attr("x", histX).attr("y", h - 2).attr("text-anchor", (y, i) => (y === years[0] ? "start" : y === years[years.length - 1] ? "end" : "middle"))
+      .attr("dx", (y) => (y === years[0] ? -histBand.bandwidth() / 2 : y === years[years.length - 1] ? histBand.bandwidth() / 2 : 0))
+      .text((y) => y);
+    s.append("line").attr("id", "hist-marker").attr("y1", 0).attr("y2", h - axisH).attr("stroke", "var(--path)").attr("stroke-width", 1.5);
+    $("hist-note").textContent = `Peak ${maxN} paper${maxN > 1 ? "s" : ""} a year`;
+    const sc = $("scrub"); sc.min = years[0]; sc.max = years[years.length - 1];
+  }
+  function drawHistMarker(y) {
+    if (!histX) return;
+    d3.select("#hist-marker").attr("x1", histX(y)).attr("x2", histX(y));
+  }
+
+  function yearAt(clientX) {
+    const r = $("hist").getBoundingClientRect(), ys = journey.years;
+    const i = Math.round(((clientX - r.left) / r.width) * ys.length - 0.5);
+    return ys[Math.max(0, Math.min(ys.length - 1, i))];
+  }
+  function histTip(ev) {
+    if (!journey || ev.pointerType === "touch") return;
+    const y = yearAt(ev.clientX), ws = current.works.filter((w) => w.y === y);
+    const by = d3.rollup(ws, (v) => v.length, (w) => nodes[w.node].domain);
+    const t = $("tip");
+    t.innerHTML = `<h4>${y}</h4><div class="num">${ws.length ? `${ws.length} paper${ws.length > 1 ? "s" : ""} led` : "No papers led"}</div>` +
+      (ws.length ? `<ul>${Object.keys(DOMAIN_KEY).filter((d) => by.get(d)).map((d) => `<li>${esc(d)}: ${by.get(d)}</li>`).join("")}</ul>` : "");
+    t.hidden = false; moveTip(ev);
+  }
+
+  function setupJourneyControls() {
+    $("scrub").addEventListener("input", (e) => { stopPlay(); setYear(+e.target.value); });
+    $("scrub").addEventListener("pointermove", histTip);
+    $("scrub").addEventListener("pointerleave", () => { if (!pinned) hideTip(); });
+    $("play").addEventListener("click", () => (playTimer ? stopPlay() : play()));
+    $("papers").addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      stopPlay(); picked = nodes[+b.dataset.node]; setYear(+b.dataset.y);
+    });
+  }
+  function play() {
+    stopPlay();
+    const ys = journey.years;
+    let i = journey.year >= ys[ys.length - 1] ? 0 : ys.indexOf(journey.year);
+    const step = Math.max(90, Math.min(260, 7000 / ys.length));
+    $("play").querySelector("span").textContent = "Pause";
+    const tick = () => {
+      setYear(ys[i]);
+      i++;
+      if (i >= ys.length) { stopPlay(); return; }
+      playTimer = setTimeout(tick, step);
+    };
+    tick();
+  }
+  function stopPlay() {
+    if (playTimer) clearTimeout(playTimer);
+    playTimer = null;
+    const b = $("play"); if (b) b.querySelector("span").textContent = "Play journey";
+  }
+
+  // ---------- search ----------
+  function setupSearch() {
+    const q = $("q"), box = $("suggest");
+    const topicIndex = [];
+    nodes.forEach((n) => n.topics.forEach((t) => topicIndex.push({ t, n })));
+    nodes.forEach((n) => topicIndex.push({ t: n.subfield, n, sub: true }));
+    let items = [], active = -1;
+    const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    function update() {
+      const v = norm(q.value.trim());
+      if (!v) { box.hidden = true; q.setAttribute("aria-expanded", "false"); return; }
+      const people = PIS.filter((p) => norm(p.name).includes(v)).slice(0, 6);
+      const seen = new Set();
+      const topics = topicIndex.filter((x) => norm(x.t).includes(v)).filter((x) => {
+        const key = x.t + "|" + x.n.i; if (seen.has(key)) return false; seen.add(key); return true;
+      }).sort((a, b) => b.n.works - a.n.works).slice(0, 6);
+      items = [...people.map((p) => ({ kind: "pi", p })), ...topics.map((x) => ({ kind: "topic", x }))];
+      active = items.length ? 0 : -1;
+      let html = "";
+      if (people.length) html += `<h3>Scientists</h3>` + people.map((p, i) =>
+        `<button type="button" role="option" data-k="${i}"><span>${esc(p.name)}</span><small>${esc(Object.keys(p.fields).slice(0, 2).map(shortField).join(", "))}</small></button>`).join("");
+      if (topics.length) html += `<h3>Topics</h3>` + topics.map((x, j) =>
+        `<button type="button" role="option" data-k="${people.length + j}"><span>${esc(x.t)}</span><small>${esc(x.sub ? x.n.field : x.n.subfield)}</small></button>`).join("");
+      if (!items.length) html = `<p>No match in this demo. It covers ${PIS.length} scientists: ${PIS.map((p) => esc(p.name)).join(", ")}.</p>`;
+      box.innerHTML = html; box.hidden = false; q.setAttribute("aria-expanded", "true"); mark();
+    }
+    function mark() { box.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", +b.dataset.k === active ? "true" : "false")); }
+    function choose(i) {
+      const it = items[i]; if (!it) return;
+      box.hidden = true; q.setAttribute("aria-expanded", "false");
+      if (it.kind === "pi") { q.value = ""; select(it.p); }
+      else { picked = it.x.n; pinned = it.x.n; zoomToNode(it.x.n); setTimeout(() => showTip(it.x.n), REDUCED ? 0 : 780); render(); }
+    }
+    q.addEventListener("input", update);
+    q.addEventListener("focus", update);
+    q.addEventListener("keydown", (e) => {
+      if (box.hidden) return;
+      if (e.key === "ArrowDown") { active = Math.min(items.length - 1, active + 1); mark(); e.preventDefault(); }
+      else if (e.key === "ArrowUp") { active = Math.max(0, active - 1); mark(); e.preventDefault(); }
+      else if (e.key === "Enter") { choose(active); e.preventDefault(); }
+      else if (e.key === "Escape") { box.hidden = true; q.setAttribute("aria-expanded", "false"); }
+    });
+    box.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) choose(+b.dataset.k); });
+    document.addEventListener("click", (e) => { if (!e.target.closest(".search")) box.hidden = true; });
+  }
+})();
+</script>
+</body></html>
